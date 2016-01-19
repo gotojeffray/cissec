@@ -4,65 +4,73 @@
 #Licenced under the BSD Licence See LICENCE file for details
 
 install
-lang en_GB.UTF-8
-keyboard --vckeymap=gb --xlayouts='gb'
-timezone Europe/London --isUtc
+lang en_US
+keyboard us
+timezone Pacific/Auckland
 auth --useshadow --passalgo=sha512 			# CIS 6.3.1
 firewall --enabled
 services --enabled=NetworkManager,sshd
 eula --agreed
 ignoredisk --only-use=vda
 reboot
-	 
+
 bootloader --location=mbr --append=" crashkernel=auto"
 zerombr
 clearpart --all --initlabel
-part swap --asprimary --fstype="swap" --size=1024
-part /boot --fstype xfs --size=200
-part pv.01 --size=1 --grow
-volgroup vg_root pv.01
-logvol / --fstype xfs --name=root --vgname=vg_root --size=5120
-# CIS 1.1.1-1.1.4
-logvol /tmp --vgname vg_root --name tmp --size=500 --fsoptions="nodev,nosuid,noexec"
-# CIS 1.1.5
-logvol /var --vgname vg_root --name var --size=500
-# CIS 1.1.7
-logvol /var/log --vgname vg_root --name log --size=1024
-# CIS 1.1.8
-logvol /var/log/audit --vgname vg_root --name audit --size=1024
-# CIS 1.1.9-1.1.0
-logvol /home --vgname vg_root --name home --size=1024 --grow --fsoptions="nodev"
-	 
-rootpw yourpasswordhere
 
-repo --name=base --baseurl="http://mirrors.kernel.org/centos/7/os/x86_64/"
-url --url="http://mirrors.kernel.org/centos/7/os/x86_64/"
+#part swap --asprimary --fstype="swap" --size=1024
+part /boot --fstype ext4 --size=500
+part pv.008002 --size=1 --grow
+
+volgroup vg_root --pesize=4096 pv.008002
+
+logvol / --fstype ext4 --name=root --vgname=vg_root --size=15360
+# CIS 1.1.1-1.1.4
+logvol /tmp --vgname vg_root --name tmp --size=2048 --fsoptions="nodev,nosuid,noexec"
+# CIS 1.1.5
+logvol /var --vgname vg_root --name var --size=15360
+# CIS 1.1.7
+logvol /var/log --vgname vg_root --name log --size=15360
+# CIS 1.1.8
+logvol /var/log/audit --vgname vg_root --name audit --size=2048
+# CIS 1.1.9-1.1.0
+logvol /home --vgname vg_root --name home --size=15360 --grow --fsoptions="nodev"
+
+logvol /localdata --fstype=xfs --name lv_data --vgname vg_root --size=71680
+
+logvol swap --name lv_swap --vgname vg_root --size=15360
+
+#rootpw yourpasswordhere
+rootpw --iscrypted $default_password_crypted
+
+repo --name=base --baseurl="http://10.100.160.7/centos7/"
+url --url="http://10.100.160.7/centos7/"
 
 %packages --ignoremissing
 @core
-aide 				# CIS 1.3.1
+aide                            # CIS 1.3.1
 setroubleshoot-server
-ntp				# CIS 3.6
-tcp_wrappers			# CIS 4.5.1
-rsyslog				# CIS 5.1.1
-cronie-anacron			# CIS 6.1.2
--setroubleshoot 		# CIS 1.4.4
--mcstrans	 		# CIS 1.4.5
--telnet 			# CIS 2.1.2
--rsh-server 			# CIS 2.1.3
--rsh				# CIS 2.1.4
--ypbind				# CIS 2.1.5
--ypserv				# CIS 2.1.6
--tftp				# CIS 2.1.7
--tftp-server			# CIS 2.1.8
--talk				# CIS 2.1.9
--talk-server			# CIS 2.1.10
--xinetd				# CIS 2.1.11
--xorg-x11-server-common		# CIS 3.2
--avahi-daemon			# CIS 3.3
--cups				# CIS 3.4
--dhcp				# CIS 3.5
--openldap			# CIS 3.7
+ntp                             # CIS 3.6
+tcp_wrappers                    # CIS 4.5.1
+rsyslog                         # CIS 5.1.1
+cronie-anacron                  # CIS 6.1.2
+-setroubleshoot                 # CIS 1.4.4
+-mcstrans                       # CIS 1.4.5
+-telnet                         # CIS 2.1.2
+-rsh-server                     # CIS 2.1.3
+-rsh                            # CIS 2.1.4
+-ypbind                         # CIS 2.1.5
+-ypserv                         # CIS 2.1.6
+-tftp                           # CIS 2.1.7
+-tftp-server                    # CIS 2.1.8
+-talk                           # CIS 2.1.9
+-talk-server                    # CIS 2.1.10
+-xinetd                         # CIS 2.1.11
+-xorg-x11-server-common         # CIS 3.2
+-avahi-daemon                   # CIS 3.3
+-cups                           # CIS 3.4
+-dhcp                           # CIS 3.5
+-openldap                       # CIS 3.7
 %end
 
 %post --log=/root/postinstall.log
@@ -72,7 +80,7 @@ cronie-anacron			# CIS 6.1.2
 # CIS 1.1.6 + 1.1.14-1.1.16
 cat << EOF >> /etc/fstab
 /tmp      /var/tmp    none    bind    0 0
-none	/dev/shm	tmpfs	nosuid,nodev,noexec	0 0
+none    /dev/shm        tmpfs   nosuid,nodev,noexec     0 0
 EOF
 
 ###############################################################################
@@ -117,7 +125,7 @@ grub2-mkconfig -o ${grub_cfg}
 echo \* hard core 0 >> /etc/security/limits.conf
 
 cat << EOF >> /etc/sysctl.conf
-fs.suid_dumpable = 0					# CIS 1.6.1	
+fs.suid_dumpable = 0					# CIS 1.6.1
 kernel.randomize_va_space = 2				# CIS 1.6.2
 net.ipv4.ip_forward = 0					# CIS 4.1.1
 net.ipv4.conf.all.send_redirects = 0			# CIS 4.1.2
@@ -149,8 +157,8 @@ rm default.target
 ln -s multi-user.target default.target
 
 ntp_conf='/etc/ntp.conf'
-sed -i "s/^restrict default/restrict default kod/" ${ntp_conf}
-line_num="$(grep -n "^restrict default" ${ntp_conf} | cut -f1 -d:)"
+sed -i "s/^restrict default/restrict default kod/" /etc/ntp.conf
+line_num=`grep -n "^restrict default" $ntp_conf | cut -f1 -d:)`
 sed -i "${line_num} a restrict -6 default kod nomodify notrap nopeer noquery" ${ntp_conf}
 sed -i s/'^OPTIONS="-g"'/'OPTIONS="-g -u ntp:ntp -p \/var\/run\/ntpd.pid"'/ /etc/sysconfig/ntpd
 
@@ -160,52 +168,49 @@ chmod 644 /etc/hosts.deny				# CIS 4.5.5
 
 chown root:root /etc/rsyslog.conf			# CIS 5.1.4
 chmod 600 /etc/rsyslog.conf				# CIS 5.1.4
-# CIS 5.1.3  Configure /etc/rsyslog.conf - This is environment specific 
+# CIS 5.1.3  Configure /etc/rsyslog.conf - This is environment specific
 # CIS 5.1.5  Configure rsyslog to Send Log to a Remote Log Host - This is environment specific
 auditd_conf='/etc/audit/auditd.conf'
 # CIS 5.2.1.1 Configure Audit Log Storage Size
-sed -i 's/^max_log_file .*$/max_log_file 1024/' ${auditd_conf}		
+sed -i 's/^max_log_file .*$/max_log_file 1024/' ${auditd_conf}
 # CIS 5.2.1.2 Disable system on Audit Log Full - This is VERY environment specific (and likely controversial)
-sed -i 's/^space_left_action.*$/space_left_action email/' ${auditd_conf}		
-sed -i 's/^action_mail_acct.*$/action_mail_acct root/' ${auditd_conf}		
-sed -i 's/^admin_space_left_action.*$/admin_space_left_action halt/' ${auditd_conf}		
+sed -i 's/^space_left_action.*$/space_left_action email/' ${auditd_conf}
+sed -i 's/^action_mail_acct.*$/action_mail_acct root/' ${auditd_conf}
+sed -i 's/^admin_space_left_action.*$/admin_space_left_action halt/' ${auditd_conf}
 # CIS 5.2.1.3 Keep All Auditing Information
-sed -i 's/^max_log_file_action.*$/max_log_file_action keep_logs/' ${auditd_conf}		
+sed -i 's/^max_log_file_action.*$/max_log_file_action keep_logs/' ${auditd_conf}
 
 # CIS 6.1.2-6.1.9
 chown root:root /etc/anacrontab	/etc/crontab /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /etc/cron.d
 chmod 600 /etc/anacrontab /etc/crontab /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly /etc/cron.d
 
 # CIS 6.1.10 + 6.1.11
-[[ -w /etc/at.deny ]] && rm /etc/at.deny 
+[[ -w /etc/at.deny ]] && rm /etc/at.deny
 [[ -w /etc/cron.deny ]] && rm /etc/cron.deny
 touch /etc/at.allow /etc/cron.allow
 chown root:root /etc/at.allow /etc/cron.allow
 chmod 600 /etc/at.allow /etc/cron.allow
 
-
-
-
 cat << EOF >> /etc/audit/rules.d/audit.rules
 
--a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change 
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
 -a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change
 -a always,exit -F arch=b64 -S clock_settime -k time-change
 -a always,exit -F arch=b32 -S clock_settime -k time-change
 -w /etc/localtime -p wa -k time-change
 
--w /etc/group -p wa -k identity 
--w /etc/passwd -p wa -k identity 
--w /etc/gshadow -p wa -k identity 
--w /etc/shadow -p wa -k identity 
--w /etc/security/opasswd -p wa -k identity 
+-w /etc/group -p wa -k identity
+-w /etc/passwd -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/security/opasswd -p wa -k identity
 
 -a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale
 -a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale
 -w /etc/issue -p wa -k system-locale
 -w /etc/issue.net -p wa -k system-locale
 -w /etc/hosts -p wa -k system-locale
--w /etc/sysconfig/network -p wa -k system-locale 
+-w /etc/sysconfig/network -p wa -k system-locale
 
 -w /etc/selinux/ -p wa -k MAC-policy
 
@@ -258,8 +263,8 @@ cat << EOF >> /etc/audit/rules.d/audit.rules
 -a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
 -a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
 
--a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 \ -F auid!=4294967295 -k delete 
--a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 \ -F auid!=4294967295 -k delete 
+-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 \ -F auid!=4294967295 -k delete
+-a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 \ -F auid!=4294967295 -k delete
 -w /etc/sudoers -p wa -k scope
 -w /var/log/sudo.log -p wa -k actions
 
@@ -268,7 +273,7 @@ cat << EOF >> /etc/audit/rules.d/audit.rules
 -w /sbin/modprobe -p x -k modules
 -a always,exit -F arch=b64 -S init_module -S delete_module -k modules
 
--e 2 
+-e 2
 EOF
 
 sed -i "1 i /var/log/boot.log" /etc/logrotate.d/syslog 			# CIS 5.3
@@ -285,8 +290,8 @@ sed -i "s/\#HostbasedAuthentication no/HostbasedAuthentication no/" ${sshd_confi
 sed -i "s/\#PermitRootLogin yes/PermitRootLogin no/" ${sshd_config}	# CIS 6.2.8
 sed -i "s/\#PermitEmptyPasswords no/PermitEmptyPasswords no/" ${sshd_config}	# CIS 6.2.9
 sed -i "s/\#PermitUserEnvironment no/PermitUserEnvironment no/" ${sshd_config}	# CIS 6.2.10
-line_num=$(grep -n "^\# Ciphers and keying" ${sshd_config} | cut -d: -f1)
-sed -i "${line_num} a Ciphers aes128-ctr,aes192-ctr,aes256-ctr" ${sshd_config}	# CIS 6.2.11
+line_num=`grep -n "^\# Ciphers and keying" $sshd_config | cut -d: -f1`
+sed -i "$line_num a Ciphers aes128-ctr,aes192-ctr,aes256-ctr" ${sshd_config}	# CIS 6.2.11
 sed -i "s/\#ClientAliveInterval 0/ClientAliveInterval 300/" ${sshd_config}	# CIS 6.2.12
 sed -i "s/\#ClientAliveCountMax 3/ClientAliveCountMax 0/" ${sshd_config}	# CIS 6.2.12
 sed -i "s/\#Banner none/Banner \/etc\/issue\.net/" ${sshd_config}    	# CIS 6.2.12
@@ -297,8 +302,8 @@ sed -i 's/^PASS_MAX_DAYS.*$/PASS_MAX_DAYS 90/' ${login_defs}		# CIS 7.1.1
 sed -i 's/^PASS_MIN_DAYS.*$/PASS_MIN_DAYS 7/' ${login_defs}		# CIS 7.1.2
 sed -i 's/^PASS_WARN_AGE.*$/PASS_WARN_AGE 7/' ${login_defs}		# CIS 7.1.3
 
-root_gid="$(id -g root)"
-if [[ "${root_gid}" -ne 0 ]] ; then 
+root_gid=`id -g root`
+if [[ "$root_gid" -ne 0 ]] ; then
   usermod -g 0 root							# CIS 7.3
 fi
 
@@ -306,13 +311,14 @@ fi
 bashrc='/etc/bashrc'
 #first umask cmd sets it for users, second umask cmd sets it for system reserved uids
 #we want to alter the first one
-line_num=$(grep -n "^[[:space:]]*umask" ${bashrc} | head -1 | cut -d: -f1)
-sed -i ${line_num}s/002/077/ ${bashrc}
+line_num=`grep -n "^[[:space:]]*umask" ${bashrc} | head -1 | cut -d: -f1`
+sed -i "$line_nums/002/077/" ${bashrc}
 cat << EOF >> /etc/profile.d/cis.sh
 #!/bin/bash
- 
+
 umask 077
 EOF
+
 
 [[ -w /etc/issue ]] && rm /etc/issue
 [[ -w /etc/issue.net ]] && rm /etc/issue.net
@@ -339,8 +345,9 @@ sed -i 's/^# ucredit =.*$/ucredit = -1/' ${pwqual}
 sed -i 's/^# ocredit =.*$/ocredit = -1/' ${pwqual}
 sed -i 's/^# lcredit =.*$/lcredit = -1/' ${pwqual}
 
+
 # CIS 6.3.3
-content="$(egrep -v "^#|^auth" /etc/pam.d/password-auth)"
+content=`egrep -v "^#|^auth" /etc/pam.d/password-auth`
 echo -e "auth required pam_env.so
 auth required pam_faillock.so preauth audit silent deny=5 unlock_time=900
 auth [success=1 default=bad] pam_unix.so
@@ -349,7 +356,7 @@ auth sufficient pam_faillock.so authsucc audit deny=5 unlock_time=900
 auth required pam_deny.so\n$content" > /etc/pam.d/password-auth
 
 system_auth='/etc/pam.d/system-auth'
-content="$(egrep -v "^#|^auth" ${system_auth})"
+content=`(egrep -v "^#|^auth" ${system_auth})`
 echo -e "auth required pam_env.so
 auth sufficient pam_unix.so remember=5
 auth required pam_faillock.so preauth audit silent deny=5 unlock_time=900
@@ -360,7 +367,7 @@ auth required pam_deny.so\n$content" > ${system_auth}
 
 # CIS 6.4
 cp /etc/securetty /etc/securetty.orig
-#> /etc/securetty   
+#> /etc/securetty
 cat << EOF >> /etc/securetty
 console
 tty1
@@ -368,8 +375,8 @@ EOF
 
 # CIS 6.5
 pam_su='/etc/pam.d/su'
-line_num="$(grep -n "^\#auth[[:space:]]*required[[:space:]]*pam_wheel.so[[:space:]]*use_uid" ${pam_su} | cut -d: -f1)"
-sed -i "${line_num} a auth		required	pam_wheel.so use_uid" ${pam_su}
+line_num=`grep -n "^\#auth[[:space:]]*required[[:space:]]*pam_wheel.so[[:space:]]*use_uid" ${pam_su} | cut -d: -f1`
+sed -i "$line_num a auth		required	pam_wheel.so use_uid" ${pam_su}
 usermod -G wheel root
 
 # CIS 9.2.6 If /root/bin doesn't exist we fail this check I'm electing to change /root/.bash_profile
